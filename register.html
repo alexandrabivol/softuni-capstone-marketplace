@@ -87,3 +87,45 @@
 		<script type="module" src="/src/main.js"></script>
 	</body>
 </html>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register - Marketplace Platform</title>
+</head>
+<body class="bg-light">
+  <div class="container">
+    <div class="row justify-content-center align-items-center min-vh-100">
+      <div class="col-md-5">
+        <div class="card shadow border-0 p-4">
+          <div class="card-body">
+            <h2 class="text-center mb-4 fw-bold text-primary">Create Account</h2>
+            <form id="register-form">
+              <div class="mb-3">
+                <label for="fullName" class="form-label">Full Name</label>
+                <input type="text" class="form-control" id="fullName" required placeholder="John Doe">
+              </div>
+              <div class="mb-3">
+                <label for="email" class="form-label">Email address</label>
+                <input type="email" class="form-control" id="email" required placeholder="name@example.com">
+              </div>
+              <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" required minlength="6" placeholder="******">
+              </div>
+              <button type="submit" class="btn btn-primary w-100 py-2 mb-3">Sign Up</button>
+            </form>
+            <div class="text-center">
+              <span class="text-muted">Already have an account?</span>
+              <a href="/login.html" class="text-decoration-none">Login here</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/register.js"></script>
+</body>
+</html>
