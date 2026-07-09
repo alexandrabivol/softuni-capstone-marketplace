@@ -1,74 +1,38 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1" />
-		<meta name="theme-color" content="#0f172a" />
-		<meta name="description" content="Sign in to your Bootstrap 5 and Supabase app." />
-		<title>app-test | Login</title>
-		<link
-			rel="stylesheet"
-			href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css"
-		/>
-	</head>
-	<body class="bg-body-tertiary">
-		<div class="min-vh-100 d-flex flex-column">
-			<header class="border-bottom bg-body">
-				<div class="container py-3">
-					<a class="text-decoration-none fw-semibold text-body" href="/index.html">app-test</a>
-				</div>
-			</header>
-
-			<main class="flex-grow-1 d-flex align-items-center py-5">
-				<section class="container">
-					<div class="row justify-content-center">
-						<div class="col-12 col-md-10 col-lg-5">
-							<div class="card shadow-sm border-0">
-								<div class="card-body p-4 p-md-5">
-									<p class="text-uppercase text-body-secondary small mb-2">Welcome back</p>
-									<h1 class="h3 fw-semibold mb-3">Sign in to continue.</h1>
-									<p class="text-body-secondary mb-4">
-										Access your dashboard, manage account settings, and continue your workflow.
-									</p>
-
-									<form>
-										<div class="mb-3">
-											<label for="loginEmail" class="form-label">Email address</label>
-											<input
-												type="email"
-												class="form-control form-control-lg"
-												id="loginEmail"
-												placeholder="name@example.com"
-											/>
-										</div>
-										<div class="mb-3">
-											<label for="loginPassword" class="form-label">Password</label>
-											<input
-												type="password"
-												class="form-control form-control-lg"
-												id="loginPassword"
-												placeholder="Enter your password"
-											/>
-										</div>
-										<div class="d-flex justify-content-between align-items-center mb-4">
-											<div class="form-check">
-												<input class="form-check-input" type="checkbox" id="rememberMe" />
-												<label class="form-check-label" for="rememberMe">Remember me</label>
-											</div>
-											<a class="link-secondary text-decoration-none" href="/register.html">
-												Create account
-											</a>
-										</div>
-										<button type="submit" class="btn btn-primary btn-lg w-100">Sign in</button>
-									</form>
-								</div>
-							</div>
-						</div>
-					</div>
-				</section>
-			</main>
-		</div>
-
-		<script type="module" src="/src/main.js"></script>
-	</body>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login - Marketplace Platform</title>
+</head>
+<body class="bg-light">
+  <div class="container">
+    <div class="row justify-content-center align-items-center min-vh-100">
+      <div class="col-md-5">
+        <div class="card shadow border-0 p-4">
+          <div class="card-body">
+            <h2 class="text-center mb-4 fw-bold text-primary">Welcome Back</h2>
+            <form id="login-form">
+              <div class="mb-3">
+                <label for="email" class="form-label">Email address</label>
+                <input type="email" class="form-control" id="email" required placeholder="name@example.com">
+              </div>
+              <div class="mb-3">
+                <label for="password" class="form-label">Password</label>
+                <input type="password" class="form-control" id="password" required placeholder="******">
+              </div>
+              <button type="submit" class="btn btn-primary w-100 py-2 mb-3">Sign In</button>
+            </form>
+            <div class="text-center">
+              <span class="text-muted">Don't have an account?</span>
+              <a href="/register.html" class="text-decoration-none">Register here</a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script type="module" src="/src/main.js"></script>
+  <script type="module" src="/src/login.js"></script>
+</body>
 </html>
