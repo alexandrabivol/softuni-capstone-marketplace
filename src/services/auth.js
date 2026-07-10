@@ -1,16 +1,35 @@
 import { supabase } from './supabase.js';
 
-// Absolute fail-safe: Retrieve current active authentication token session
+// 1. Account Registration Service Handlers
+export async function registerUser(email, password) {
+  const { data, error } = await supabase.auth.signUp({
+    email: email,
+    password: password,
+  });
+  if (error) throw error;
+  return data.user;
+}
+
+// 2. Account Login Service Handlers (If your login page needs it)
+export async function loginUser(email, password) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email: email,
+    password: password,
+  });
+  if (error) throw error;
+  return data.user;
+}
+
+// 3. Failsafe Session Check for Protected Dashboards
 export async function getCurrentUser() {
   try {
-    // 1. Ask Supabase for the current active local session state
     const { data: { session } } = await supabase.auth.getSession();
     
     if (session && session.user) {
       return session.user;
     }
 
-    // 2. Fallback: If network race conditions haven't established yet, look into the browser's storage
+    // Fallback: Look into browser local storage cache to clear dashboard race conditions
     const localSessionKey = Object.keys(localStorage).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
     if (localSessionKey) {
       const localData = JSON.parse(localStorage.getItem(localSessionKey));
@@ -26,9 +45,7 @@ export async function getCurrentUser() {
   }
 }
 
-// Complete clean log-out routine
+// 4. Clean Log-out Routine
 export async function logoutUser() {
   await supabase.auth.signOut();
-  // Wipe any fallback items
-  localStorage.removeItem('sb-mock-session');
 }
