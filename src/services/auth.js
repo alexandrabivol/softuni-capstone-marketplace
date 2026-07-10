@@ -17,27 +17,34 @@ export async function loginUser(email, password) {
     password: password,
   });
   if (error) throw error;
-  return data.user;
+  return data.session ?? data.user;
 }
 
-// 3. Bulletproof Session Check using official getUser validation
-export async function getCurrentUser() {
+// 3. Session-first check for route guards and post-login redirects
+export async function getCurrentUser({ waitForSession = true, timeoutMs = 2000 } = {}) {
   try {
-    // getUser is safe against production bundle timing race conditions
-    const { data: { user }, error } = await supabase.auth.getUser();
-    if (user) return user;
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) return session.user;
 
-    // Fallback: Check local storage tokens explicitly if network latency delays initialization
-    const localSessionKey = Object.keys(localStorage).find(
-      key => key.startsWith('sb-') && key.endsWith('-auth-token')
-    );
-    if (localSessionKey) {
-      const localData = JSON.parse(localStorage.getItem(localSessionKey));
-      if (localData && localData.user) {
-        return localData.user;
-      }
-    }
-    return null;
+    if (!waitForSession) return null;
+
+    return await new Promise((resolve) => {
+      let settled = false;
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        subscription.unsubscribe();
+        resolve(null);
+      }, timeoutMs);
+
+      const { data: { subscription } } = supabase.auth.onAuthStateChange((_, nextSession) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        subscription.unsubscribe();
+        resolve(nextSession?.user ?? null);
+      });
+    });
   } catch (error) {
     console.error("Auth helper error checking credentials:", error);
     return null;

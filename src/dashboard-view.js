@@ -6,12 +6,7 @@ let currentUser = null;
 document.addEventListener('DOMContentLoaded', async () => {
   // 1. STRICT AUTH CHECK: Secure the route immediately
   try {
-    currentUser = await getCurrentUser();
-    
-    if (!currentUser) {
-      await new Promise(resolve => setTimeout(resolve, 200));
-      currentUser = await getCurrentUser();
-    }
+    currentUser = await getCurrentUser({ waitForSession: true, timeoutMs: 2500 });
     
     if (!currentUser) {
       console.log("No valid user authenticated. Forwarding to login screen.");

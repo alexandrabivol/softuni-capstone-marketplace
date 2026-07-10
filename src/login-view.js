@@ -1,4 +1,5 @@
 import { loginUser } from './services/auth.js';
+import { getCurrentUser } from './services/auth.js';
 
 const loginForm = document.getElementById('login-form');
 
@@ -18,19 +19,20 @@ if (loginForm) {
 
     try {
       // 1. Await server authentication
-      const user = await loginUser(email, password);
+      const userOrSession = await loginUser(email, password);
       
-      if (user) {
+      if (userOrSession) {
+        const confirmedUser = await getCurrentUser({ waitForSession: true, timeoutMs: 2500 });
+
+        if (!confirmedUser) {
+          throw new Error('Session was not ready. Please try signing in again.');
+        }
+
         if (errorAlert) errorAlert.classList.add('d-none');
         
         console.log("Authentication signature established! Writing local assets...");
 
-        // 2. CRITICAL SAFETY PAUSE (Fixes the instant redirect bug):
-        // Delaying the window change by 350ms gives the Supabase library 
-        // the time it needs to fully write the local storage token before the page changes.
-        setTimeout(() => {
-          window.location.href = '/dashboard.html';
-        }, 350);
+        window.location.href = '/dashboard.html';
       }
     } catch (err) {
       console.error("Login failure caught:", err.message);
