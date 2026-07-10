@@ -1,24 +1,34 @@
-import { supabase } from './services/supabase';
-import { getCurrentUser, logoutUser } from './services/auth';
+import { supabase } from './services/supabase.js';
+import { getCurrentUser, logoutUser } from './services/auth.js';
 
 let currentUser = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
-  currentUser = await getCurrentUser();
-  
-  if (!currentUser) {
-    window.location.href = '/login.html';
-    return;
+  try {
+    currentUser = await getCurrentUser();
+    
+    if (!currentUser) {
+      console.log("No user session caught. Redirecting to login...");
+      window.location.href = '/login.html';
+      return;
+    }
+
+    // Explicitly confirm we have a session in your browser console
+    console.log("Successfully authenticated user session on dashboard:", currentUser.email);
+
+    document.getElementById('logout-btn')?.addEventListener('click', async () => {
+      await logoutUser();
+      window.location.href = '/index.html';
+    });
+
+    document.getElementById('listing-form')?.addEventListener('submit', handleSaveListing);
+    
+    // Run listing loader securely
+    await loadUserListings();
+
+  } catch (err) {
+    console.error("Dashboard initialization block crash caught:", err.message);
   }
-
-  document.getElementById('logout-btn')?.addEventListener('click', async () => {
-    await logoutUser();
-    window.location.href = '/index.html';
-  });
-
-  // Target your creation form element
-  document.getElementById('listing-form')?.addEventListener('submit', handleSaveListing);
-  loadUserListings();
 });
 
 async function loadUserListings() {
@@ -26,43 +36,46 @@ async function loadUserListings() {
   if (!grid) return;
   grid.innerHTML = '<div class="col-12 text-center text-muted">Retrieving catalog...</div>';
 
-  const { data: listings, error } = await supabase
-    .from('listings')
-    .select('*')
-    .eq('user_id', currentUser.id);
+  try {
+    if (!currentUser || !currentUser.id) return;
 
-  if (error) {
+    const { data: listings, error } = await supabase
+      .from('listings')
+      .select('*')
+      .eq('user_id', currentUser.id);
+
+    if (error) throw error;
+
+    if (!listings || listings.length === 0) {
+      grid.innerHTML = `
+        <div class="col-10 py-5 text-center text-muted mx-auto">
+          <h4 class="fw-bold">No active items posted yet!</h4>
+          <p class="small text-secondary">Click the action button above to write your first catalog entry.</p>
+        </div>`;
+      return;
+    }
+
+    grid.innerHTML = '';
+    listings.forEach(item => {
+      const fallBack = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500';
+      grid.innerHTML += `
+        <div class="col">
+          <div class="card h-100 border-0 shadow-sm overflow-hidden">
+            <img src="${item.image_url || fallBack}" class="card-img-top object-fit-cover" style="height: 200px;">
+            <div class="card-body">
+              <h5 class="card-title fw-bold text-dark">${item.title}</h5>
+              <p class="fs-4 fw-black text-primary mb-2">$${Number(item.price).toFixed(2)}</p>
+              <p class="card-text text-muted small">${item.description || 'No item details supplied.'}</p>
+            </div>
+            <div class="card-footer bg-light border-0 pt-0 pb-3">
+              <button class="btn btn-outline-danger btn-sm w-100" onclick="deleteItem('${item.id}')">Remove Posting</button>
+            </div>
+          </div>
+        </div>`;
+    });
+  } catch (error) {
     grid.innerHTML = `<div class="alert alert-danger w-100">Database read breakdown: ${error.message}</div>`;
-    return;
   }
-
-  if (listings.length === 0) {
-    grid.innerHTML = `
-      <div class="col-10 py-5 text-center text-muted mx-auto">
-        <h4 class="fw-bold">No active items posted yet!</h4>
-        <p class="small text-secondary">Click the action button above to write your first catalog entry.</p>
-      </div>`;
-    return;
-  }
-
-  grid.innerHTML = '';
-  listings.forEach(item => {
-    const fallBack = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500';
-    grid.innerHTML += `
-      <div class="col">
-        <div class="card h-100 border-0 shadow-sm overflow-hidden">
-          <img src="${item.image_url || fallBack}" class="card-img-top object-fit-cover" style="height: 200px;">
-          <div class="card-body">
-            <h5 class="card-title fw-bold text-dark">${item.title}</h5>
-            <p class="fs-4 fw-black text-primary mb-2">$${Number(item.price).toFixed(2)}</p>
-            <p class="card-text text-muted small">${item.description || 'No item details supplied.'}</p>
-          </div>
-          <div class="card-footer bg-light border-0 pt-0 pb-3">
-            <button class="btn btn-outline-danger btn-sm w-100" onclick="deleteItem('${item.id}')">Remove Posting</button>
-          </div>
-        </div>
-      </div>`;
-  });
 }
 
 async function handleSaveListing(e) {
@@ -71,14 +84,11 @@ async function handleSaveListing(e) {
   const title = document.getElementById('title').value;
   const price = document.getElementById('price').value;
   const description = document.getElementById('description').value;
-  
-  // 1. Target the category slug select field and the file input field
-  const categorySlug = document.getElementById('category')?.value || 'general';
+  const categorySlug = document.getElementById('category')?.value || 'electronics';
   const fileInput = document.getElementById('item-image-file'); 
 
-  let imageUrl = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600'; // Default fallback image
+  let imageUrl = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600'; 
 
-  // Visual button feedback indicator
   const submitBtn = e.target.querySelector('button[type="submit"]');
   if (submitBtn) {
     submitBtn.disabled = true;
@@ -86,21 +96,18 @@ async function handleSaveListing(e) {
   }
 
   try {
-    // 2. Core server-side file upload sequence (Fulfills the File Storage requirement)
     if (fileInput && fileInput.files.length > 0) {
       const file = fileInput.files[0];
       const fileExtension = file.name.split('.').pop();
       const fileName = `${Date.now()}_product.${fileExtension}`;
       const filePath = `uploads/${fileName}`;
 
-      // Upload binary payload directly to your public bucket storage array
       const { data: storageData, error: storageError } = await supabase.storage
         .from('product-images')
         .upload(filePath, file);
 
       if (storageError) throw storageError;
 
-      // Extract the clean public asset URL location to store in database row links
       const { data: publicUrlData } = supabase.storage
         .from('product-images')
         .getPublicUrl(filePath);
@@ -108,7 +115,6 @@ async function handleSaveListing(e) {
       imageUrl = publicUrlData.publicUrl;
     }
 
-    // 3. Save listing row parameters directly into public schema tables
     const { error } = await supabase.from('listings').insert([
       {
         title,
@@ -127,7 +133,7 @@ async function handleSaveListing(e) {
     alert('Listing entry submission breakdown: ' + error.message);
     if (submitBtn) {
       submitBtn.disabled = false;
-      submitBtn.innerText = 'Publish Listing';
+      submitBtn.innerText = 'Publish Item';
     }
   }
 }
