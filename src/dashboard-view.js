@@ -16,6 +16,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.location.href = '/index.html';
   });
 
+  // Target your creation form element
   document.getElementById('listing-form')?.addEventListener('submit', handleSaveListing);
   loadUserListings();
 });
@@ -53,7 +54,7 @@ async function loadUserListings() {
           <img src="${item.image_url || fallBack}" class="card-img-top object-fit-cover" style="height: 200px;">
           <div class="card-body">
             <h5 class="card-title fw-bold text-dark">${item.title}</h5>
-            <p class="fs-4 fw-black text-primary mb-2">$${item.price}</p>
+            <p class="fs-4 fw-black text-primary mb-2">$${Number(item.price).toFixed(2)}</p>
             <p class="card-text text-muted small">${item.description || 'No item details supplied.'}</p>
           </div>
           <div class="card-footer bg-light border-0 pt-0 pb-3">
@@ -71,21 +72,63 @@ async function handleSaveListing(e) {
   const price = document.getElementById('price').value;
   const description = document.getElementById('description').value;
   
+  // 1. Target the category slug select field and the file input field
+  const categorySlug = document.getElementById('category')?.value || 'general';
+  const fileInput = document.getElementById('item-image-file'); 
+
+  let imageUrl = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=600'; // Default fallback image
+
+  // Visual button feedback indicator
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  if (submitBtn) {
+    submitBtn.disabled = true;
+    submitBtn.innerText = 'Uploading assets and saving...';
+  }
+
   try {
+    // 2. Core server-side file upload sequence (Fulfills the File Storage requirement)
+    if (fileInput && fileInput.files.length > 0) {
+      const file = fileInput.files[0];
+      const fileExtension = file.name.split('.').pop();
+      const fileName = `${Date.now()}_product.${fileExtension}`;
+      const filePath = `uploads/${fileName}`;
+
+      // Upload binary payload directly to your public bucket storage array
+      const { data: storageData, error: storageError } = await supabase.storage
+        .from('product-images')
+        .upload(filePath, file);
+
+      if (storageError) throw storageError;
+
+      // Extract the clean public asset URL location to store in database row links
+      const { data: publicUrlData } = supabase.storage
+        .from('product-images')
+        .getPublicUrl(filePath);
+
+      imageUrl = publicUrlData.publicUrl;
+    }
+
+    // 3. Save listing row parameters directly into public schema tables
     const { error } = await supabase.from('listings').insert([
       {
         title,
         price: parseFloat(price),
         description,
+        image_url: imageUrl,
+        category_slug: categorySlug,
         user_id: currentUser.id
       }
     ]);
 
     if (error) throw error;
-    alert('Item published successfully!');
+    alert('Item published successfully with media assets attached!');
     location.reload();
   } catch (error) {
     alert('Listing entry submission breakdown: ' + error.message);
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.innerText = 'Publish Listing';
+    }
   }
 }
 
