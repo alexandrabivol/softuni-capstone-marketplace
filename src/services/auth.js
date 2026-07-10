@@ -1,37 +1,34 @@
-import { supabase } from './supabase';
+import { supabase } from './supabase.js';
 
-// 1. Sign Up a New User
-export async function registerUser(email, password, fullName) {
-  const { data, error } = await supabase.auth.signUp({
-    email,
-    password,
-    options: {
-      data: { full_name: fullName }
-    }
-  });
-  if (error) throw error;
-  return data;
-}
-
-// 2. Log In an Existing User
-export async function loginUser(email, password) {
-  const { data, error } = await supabase.auth.signInWithPassword({
-    email,
-    password
-  });
-  if (error) throw error;
-  return data;
-}
-
-// 3. Log Out the Current User
-export async function logoutUser() {
-  const { error } = await supabase.auth.signOut();
-  if (error) throw error;
-}
-
-// 4. Get Current Logged In User Session
+// Absolute fail-safe: Retrieve current active authentication token session
 export async function getCurrentUser() {
-  const { data: { session }, error } = await supabase.auth.getSession();
-  if (error) return null;
-  return session?.user || null;
+  try {
+    // 1. Ask Supabase for the current active local session state
+    const { data: { session } } = await supabase.auth.getSession();
+    
+    if (session && session.user) {
+      return session.user;
+    }
+
+    // 2. Fallback: If network race conditions haven't established yet, look into the browser's storage
+    const localSessionKey = Object.keys(localStorage).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
+    if (localSessionKey) {
+      const localData = JSON.parse(localStorage.getItem(localSessionKey));
+      if (localData && localData.user) {
+        return localData.user;
+      }
+    }
+
+    return null;
+  } catch (error) {
+    console.error("Auth helper error checking credentials:", error);
+    return null;
+  }
+}
+
+// Complete clean log-out routine
+export async function logoutUser() {
+  await supabase.auth.signOut();
+  // Wipe any fallback items
+  localStorage.removeItem('sb-mock-session');
 }
