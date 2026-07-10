@@ -4,35 +4,50 @@ import { getCurrentUser, logoutUser } from './services/auth.js';
 let currentUser = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
+  // 1. STRICT AUTH CHECK: Secure the route immediately
   try {
-    // Check for user session
     currentUser = await getCurrentUser();
     
-    // Tiny 150ms retry mechanism to completely eliminate production race conditions
     if (!currentUser) {
-      await new Promise(resolve => setTimeout(resolve, 150));
+      await new Promise(resolve => setTimeout(resolve, 200));
       currentUser = await getCurrentUser();
     }
     
     if (!currentUser) {
-      console.log("No user session caught. Redirecting to login...");
+      console.log("No valid user authenticated. Forwarding to login screen.");
       window.location.href = '/login.html';
       return;
     }
 
-    console.log("Successfully authenticated user session on dashboard:", currentUser.email);
+    console.log("User successfully verified on dashboard:", currentUser.email);
 
+    // Setup basic navigation event bindings
     document.getElementById('logout-btn')?.addEventListener('click', async () => {
       await logoutUser();
       window.location.href = '/index.html';
     });
 
     document.getElementById('listing-form')?.addEventListener('submit', handleSaveListing);
-    
-    await loadUserListings();
 
-  } catch (err) {
-    console.error("Dashboard initialization block crash caught:", err.message);
+  } catch (authError) {
+    console.error("Critical Auth routing failure:", authError.message);
+    window.location.href = '/login.html';
+    return;
+  }
+
+  // 2. ISOLATED DATA LOOKUP: If this errors out, it will NOT redirect you!
+  try {
+    await loadUserListings();
+  } catch (dbError) {
+    console.error("Isolated catalog query crash caught:", dbError.message);
+    const grid = document.getElementById('user-listings-grid');
+    if (grid) {
+      grid.innerHTML = `
+        <div class="alert alert-warning w-100 m-3">
+          <h5>Database Catalog Query Issue</h5>
+          <p class="small mb-0">${dbError.message}</p>
+        </div>`;
+    }
   }
 });
 
@@ -41,46 +56,42 @@ async function loadUserListings() {
   if (!grid) return;
   grid.innerHTML = '<div class="col-12 text-center text-muted">Retrieving catalog...</div>';
 
-  try {
-    if (!currentUser || !currentUser.id) return;
+  if (!currentUser || !currentUser.id) return;
 
-    const { data: listings, error } = await supabase
-      .from('listings')
-      .select('*')
-      .eq('user_id', currentUser.id);
+  const { data: listings, error } = await supabase
+    .from('listings')
+    .select('*')
+    .eq('user_id', currentUser.id);
 
-    if (error) throw error;
+  if (error) throw error; // Triggers the isolated safety alert without bouncing the page
 
-    if (!listings || listings.length === 0) {
-      grid.innerHTML = `
-        <div class="col-10 py-5 text-center text-muted mx-auto">
-          <h4 class="fw-bold">No active items posted yet!</h4>
-          <p class="small text-secondary">Click the action button above to write your first catalog entry.</p>
-        </div>`;
-      return;
-    }
-
-    grid.innerHTML = '';
-    listings.forEach(item => {
-      const fallBack = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500';
-      grid.innerHTML += `
-        <div class="col">
-          <div class="card h-100 border-0 shadow-sm overflow-hidden">
-            <img src="${item.image_url || fallBack}" class="card-img-top object-fit-cover" style="height: 200px;">
-            <div class="card-body">
-              <h5 class="card-title fw-bold text-dark">${item.title}</h5>
-              <p class="fs-4 fw-black text-primary mb-2">$${Number(item.price).toFixed(2)}</p>
-              <p class="card-text text-muted small">${item.description || 'No item details supplied.'}</p>
-            </div>
-            <div class="card-footer bg-light border-0 pt-0 pb-3">
-              <button class="btn btn-outline-danger btn-sm w-100" onclick="deleteItem('${item.id}')">Remove Posting</button>
-            </div>
-          </div>
-        </div>`;
-    });
-  } catch (error) {
-    grid.innerHTML = `<div class="alert alert-danger w-100">Database read breakdown: ${error.message}</div>`;
+  if (!listings || listings.length === 0) {
+    grid.innerHTML = `
+      <div class="col-10 py-5 text-center text-muted mx-auto">
+        <h4 class="fw-bold">No active items posted yet!</h4>
+        <p class="small text-secondary">Click the action button above to write your first catalog entry.</p>
+      </div>`;
+    return;
   }
+
+  grid.innerHTML = '';
+  listings.forEach(item => {
+    const fallBack = 'https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=500';
+    grid.innerHTML += `
+      <div class="col">
+        <div class="card h-100 border-0 shadow-sm overflow-hidden">
+          <img src="${item.image_url || fallBack}" class="card-img-top object-fit-cover" style="height: 200px;">
+          <div class="card-body">
+            <h5 class="card-title fw-bold text-dark">${item.title}</h5>
+            <p class="fs-4 fw-black text-primary mb-2">$${Number(item.price).toFixed(2)}</p>
+            <p class="card-text text-muted small">${item.description || 'No item details supplied.'}</p>
+          </div>
+          <div class="card-footer bg-light border-0 pt-0 pb-3">
+            <button class="btn btn-outline-danger btn-sm w-100" onclick="deleteItem('${item.id}')">Remove Posting</button>
+          </div>
+        </div>
+      </div>`;
+  });
 }
 
 async function handleSaveListing(e) {
