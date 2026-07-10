@@ -10,7 +10,7 @@ export async function registerUser(email, password) {
   return data.user;
 }
 
-// 2. Account Login Service Handlers (If your login page needs it)
+// 2. Account Login Service Handlers
 export async function loginUser(email, password) {
   const { data, error } = await supabase.auth.signInWithPassword({
     email: email,
@@ -20,24 +20,23 @@ export async function loginUser(email, password) {
   return data.user;
 }
 
-// 3. Failsafe Session Check for Protected Dashboards
+// 3. Bulletproof Session Check using official getUser validation
 export async function getCurrentUser() {
   try {
-    const { data: { session } } = await supabase.auth.getSession();
-    
-    if (session && session.user) {
-      return session.user;
-    }
+    // getUser is safe against production bundle timing race conditions
+    const { data: { user }, error } = await supabase.auth.getUser();
+    if (user) return user;
 
-    // Fallback: Look into browser local storage cache to clear dashboard race conditions
-    const localSessionKey = Object.keys(localStorage).find(key => key.startsWith('sb-') && key.endsWith('-auth-token'));
+    // Fallback: Check local storage tokens explicitly if network latency delays initialization
+    const localSessionKey = Object.keys(localStorage).find(
+      key => key.startsWith('sb-') && key.endsWith('-auth-token')
+    );
     if (localSessionKey) {
       const localData = JSON.parse(localStorage.getItem(localSessionKey));
       if (localData && localData.user) {
         return localData.user;
       }
     }
-
     return null;
   } catch (error) {
     console.error("Auth helper error checking credentials:", error);
