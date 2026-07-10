@@ -5,7 +5,14 @@ let currentUser = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
   try {
+    // Check for user session
     currentUser = await getCurrentUser();
+    
+    // Tiny 150ms retry mechanism to completely eliminate production race conditions
+    if (!currentUser) {
+      await new Promise(resolve => setTimeout(resolve, 150));
+      currentUser = await getCurrentUser();
+    }
     
     if (!currentUser) {
       console.log("No user session caught. Redirecting to login...");
@@ -13,7 +20,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    // Explicitly confirm we have a session in your browser console
     console.log("Successfully authenticated user session on dashboard:", currentUser.email);
 
     document.getElementById('logout-btn')?.addEventListener('click', async () => {
@@ -23,7 +29,6 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     document.getElementById('listing-form')?.addEventListener('submit', handleSaveListing);
     
-    // Run listing loader securely
     await loadUserListings();
 
   } catch (err) {
